@@ -12,6 +12,5 @@ This AutoML web app allows users to:
 - Compare Accuracy, Precision, Recall, F1-score
 - View Confusion Matrix
 - Feature Importance
-- Download trained model
 
 Built using Python, Scikit-learn, Streamlit.
