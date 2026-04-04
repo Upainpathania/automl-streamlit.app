@@ -8,14 +8,19 @@ import io
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 
-from sklearn.linear_model import LogisticRegression
+# Classification Models
+from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.svm import SVC
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, classification_report
-
+# Metrics
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    confusion_matrix, classification_report,
+    mean_absolute_error, mean_squared_error, r2_score
+)
 
 # Page Config
 st.set_page_config(page_title="AutoML App", layout="wide")
@@ -36,40 +41,78 @@ file = st.file_uploader("Upload CSV File", type=["csv"])
 if file:
     df = pd.read_csv(file)
 
-    # Dataset Preview
+    # ================= EDA =================
     st.subheader("Dataset Preview")
     st.dataframe(df)
 
-    # Dataset Overview
     st.subheader("Dataset Overview")
     col1, col2 = st.columns(2)
 
     with col1:
-        st.write("Dataset Shape")
-        st.write(df.shape)
-
-        st.write("Duplicate Rows")
-        st.write(df.duplicated().sum())
+        st.write("Dataset Shape:", df.shape)
+        st.write("Duplicate Rows:", df.duplicated().sum())
 
     with col2:
-        st.write("Missing Values")
+        st.write("Missing Values:")
         st.write(df.isnull().sum())
 
-    # Head and Tail
-    st.subheader("First 5 Rows")
+    st.subheader("Head")
     st.dataframe(df.head())
 
-    st.subheader("Last 5 Rows")
+    st.subheader("Tail")
     st.dataframe(df.tail())
 
-    # Dataset Info
     st.subheader("Dataset Info")
     buffer = io.StringIO()
     df.info(buf=buffer)
     st.text(buffer.getvalue())
 
-    # Sidebar Settings
+    # ================= Visualization =================
+    st.subheader("Data Visualization")
+
+    graph_type = st.selectbox(
+        "Select Graph Type",
+        ["Histogram", "Bar Chart", "Line Chart", "Scatter Plot", "Box Plot"]
+    )
+
+    numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
+    all_cols = df.columns.tolist()
+
+    if graph_type == "Histogram":
+        col = st.selectbox("Select Column", numeric_cols)
+        fig, ax = plt.subplots()
+        sns.histplot(df[col], ax=ax)
+        st.pyplot(fig)
+
+    elif graph_type == "Bar Chart":
+        col = st.selectbox("Select Column", all_cols)
+        df[col].value_counts().plot(kind='bar')
+        st.pyplot(plt)
+
+    elif graph_type == "Line Chart":
+        col = st.selectbox("Select Column", numeric_cols)
+        st.line_chart(df[col])
+
+    elif graph_type == "Scatter Plot":
+        x_col = st.selectbox("X Axis", numeric_cols)
+        y_col = st.selectbox("Y Axis", numeric_cols)
+        fig, ax = plt.subplots()
+        sns.scatterplot(x=df[x_col], y=df[y_col], ax=ax)
+        st.pyplot(fig)
+
+    elif graph_type == "Box Plot":
+        col = st.selectbox("Select Column", numeric_cols)
+        fig, ax = plt.subplots()
+        sns.boxplot(x=df[col], ax=ax)
+        st.pyplot(fig)
+
+    # ================= Sidebar ML Settings =================
     st.sidebar.title("ML Settings")
+
+    problem_type = st.sidebar.selectbox(
+        "Problem Type",
+        ["Classification", "Regression"]
+    )
 
     target = st.sidebar.selectbox("Select Target Column", df.columns)
 
@@ -80,10 +123,13 @@ if file:
         ["None", "StandardScaler", "MinMaxScaler", "RobustScaler"]
     )
 
-    model_choice = st.sidebar.selectbox(
-        "Select Algorithm",
-        ["Logistic Regression", "SVM", "Random Forest", "Decision Tree", "KNN"]
-    )
+    # Metrics selection
+    if problem_type == "Classification":
+        metric_options = ["Accuracy", "Precision", "Recall", "F1 Score"]
+    else:
+        metric_options = ["MAE", "MSE", "RMSE", "R2 Score", "Adjusted R2"]
+
+    selected_metrics = st.sidebar.multiselect("Select Metrics", metric_options)
 
     # Prepare Data
     X = df.drop(columns=[target])
@@ -106,64 +152,74 @@ if file:
     )
 
     # Models
-    models = {
-        "Logistic Regression": LogisticRegression(),
-        "SVM": SVC(),
-        "Random Forest": RandomForestClassifier(),
-        "Decision Tree": DecisionTreeClassifier(),
-        "KNN": KNeighborsClassifier()
-    }
+    if problem_type == "Classification":
+        models = {
+            "Logistic Regression": LogisticRegression(),
+            "SVM": SVC(),
+            "Random Forest": RandomForestClassifier(),
+            "Decision Tree": DecisionTreeClassifier(),
+            "KNN": KNeighborsClassifier()
+        }
+    else:
+        models = {
+            "Linear Regression": LinearRegression(),
+            "Random Forest": RandomForestRegressor(),
+            "Decision Tree": DecisionTreeRegressor(),
+            "KNN": KNeighborsRegressor()
+        }
 
-    # Train Selected Model
+    model_choice = st.sidebar.selectbox("Select Algorithm", list(models.keys()))
+
+    # Train Model
     model = models[model_choice]
     model.fit(X_train, y_train)
     y_pred = model.predict(X_test)
 
-    # Metrics
-    acc = accuracy_score(y_test, y_pred)
-    prec = precision_score(y_test, y_pred, average='weighted')
-    rec = recall_score(y_test, y_pred, average='weighted')
-    f1 = f1_score(y_test, y_pred, average='weighted')
-
     st.subheader("Model Performance")
-    st.write("Algorithm:", model_choice)
-    st.write("Accuracy:", acc)
-    st.write("Precision:", prec)
-    st.write("Recall:", rec)
-    st.write("F1 Score:", f1)
 
-    # Confusion Matrix
-    st.subheader("Confusion Matrix")
-    cm = confusion_matrix(y_test, y_pred)
+    # ================= Classification Metrics =================
+    if problem_type == "Classification":
+        if "Accuracy" in selected_metrics:
+            st.write("Accuracy:", accuracy_score(y_test, y_pred))
 
-    fig, ax = plt.subplots()
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax)
-    st.pyplot(fig)
+        if "Precision" in selected_metrics:
+            st.write("Precision:", precision_score(y_test, y_pred, average='weighted'))
 
-    # Classification Report
-    st.subheader("Classification Report")
-    st.text(classification_report(y_test, y_pred))
+        if "Recall" in selected_metrics:
+            st.write("Recall:", recall_score(y_test, y_pred, average='weighted'))
 
-    # Model Comparison Button
-    if st.button("Compare All Models"):
-        results = []
+        if "F1 Score" in selected_metrics:
+            st.write("F1 Score:", f1_score(y_test, y_pred, average='weighted'))
 
-        for name, m in models.items():
-            m.fit(X_train, y_train)
-            pred = m.predict(X_test)
+        st.subheader("Confusion Matrix")
+        cm = confusion_matrix(y_test, y_pred)
+        fig, ax = plt.subplots()
+        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=ax)
+        st.pyplot(fig)
 
-            acc = accuracy_score(y_test, pred)
-            prec = precision_score(y_test, pred, average='weighted')
-            rec = recall_score(y_test, pred, average='weighted')
-            f1 = f1_score(y_test, pred, average='weighted')
+        st.subheader("Classification Report")
+        st.text(classification_report(y_test, y_pred))
 
-            results.append([name, acc, prec, rec, f1])
+    # ================= Regression Metrics =================
+    else:
+        n = X_test.shape[0]
+        p = X_test.shape[1]
 
-        results_df = pd.DataFrame(
-            results,
-            columns=["Model", "Accuracy", "Precision", "Recall", "F1"]
-        )
+        if "MAE" in selected_metrics:
+            st.write("MAE:", mean_absolute_error(y_test, y_pred))
 
-        st.subheader("Model Comparison")
-        st.dataframe(results_df)
+        if "MSE" in selected_metrics:
+            st.write("MSE:", mean_squared_error(y_test, y_pred))
+
+        if "RMSE" in selected_metrics:
+            st.write("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred)))
+
+        if "R2 Score" in selected_metrics:
+            r2 = r2_score(y_test, y_pred)
+            st.write("R2 Score:", r2)
+
+        if "Adjusted R2" in selected_metrics:
+            r2 = r2_score(y_test, y_pred)
+            adj_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
+            st.write("Adjusted R2:", adj_r2)
 
