@@ -28,6 +28,10 @@ from sklearn.metrics import (
     confusion_matrix, classification_report, roc_auc_score,
     mean_squared_error, r2_score
 )
+import streamlit as st
+
+st.title("AutoML Web App")
+st.markdown("### Made by Upain")
 
 st.title("Auto ML Streamlit App")
 
