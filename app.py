@@ -1,78 +1,168 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import joblib
 
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.metrics import accuracy_score, r2_score
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 
-st.title("AutoML Web App")
+# Classification Models
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
 
-file = st.file_uploader("Upload Dataset")
+# Regression Models
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.svm import SVR
+from sklearn.neighbors import KNeighborsRegressor
 
-if file is not None:
+# Metrics
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    confusion_matrix, classification_report, roc_auc_score,
+    mean_squared_error, r2_score
+)
+
+st.title("Auto ML Streamlit App")
+
+# Upload dataset
+file = st.file_uploader("Upload CSV File", type=["csv"])
+
+if file:
     df = pd.read_csv(file)
-    df.columns = df.columns.str.strip()
-
     st.write("Dataset Preview")
-    st.dataframe(df.head())
+    st.dataframe(df)
 
-    target = st.selectbox("Select Target Column", df.columns)
+    # Sidebar options
+    st.sidebar.title("ML Settings")
 
-    if df[target].dtype == 'object' or df[target].nunique() < 20:
-        problem_type = "classification"
-    else:
-        problem_type = "regression"
+    target = st.sidebar.selectbox("Select Target Column", df.columns)
+    problem_type = st.sidebar.selectbox("Problem Type", ["Classification", "Regression"])
+    test_size = st.sidebar.slider("Test Size", 0.1, 0.4, 0.2)
 
-    st.write("Problem Type:", problem_type)
-
-    for col in df.columns:
-        if df[col].dtype == 'object':
-            df[col] = df[col].fillna(df[col].mode()[0])
-        else:
-            df[col] = df[col].fillna(df[col].median())
-
-    le = LabelEncoder()
-    for col in df.columns:
-        if df[col].dtype == 'object':
-            df[col] = le.fit_transform(df[col])
-
-    X = df.drop(columns=[target])
-    y = df[target]
-
-    scaler = StandardScaler()
-    X = scaler.fit_transform(X)
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+    scaler_option = st.sidebar.selectbox(
+        "Scaling",
+        ["None", "StandardScaler", "MinMaxScaler", "RobustScaler"]
     )
 
-    if st.button("Train Model"):
-        if problem_type == "classification":
-            models = {
-                "Logistic Regression": LogisticRegression(),
-                "Decision Tree": DecisionTreeClassifier(),
-                "Random Forest": RandomForestClassifier()
-            }
-        else:
-            models = {
-                "Linear Regression": LinearRegression(),
-                "Decision Tree Regressor": DecisionTreeRegressor(),
-                "Random Forest Regressor": RandomForestRegressor()
-            }
+    # EDA Section
+    st.subheader("EDA - Data Visualization")
+
+    if st.checkbox("Show Correlation Heatmap"):
+        plt.figure()
+        sns.heatmap(df.corr(), annot=True)
+        st.pyplot(plt)
+
+    if st.checkbox("Show Histogram"):
+        column = st.selectbox("Select Column", df.columns)
+        plt.figure()
+        sns.histplot(df[column])
+        st.pyplot(plt)
+
+    if st.checkbox("Show Boxplot"):
+        column = st.selectbox("Select Boxplot Column", df.columns)
+        plt.figure()
+        sns.boxplot(x=df[column])
+        st.pyplot(plt)
+
+    # Prepare Data
+    X = df.drop(target, axis=1)
+    y = df[target]
+
+    # Train Test Split
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=test_size, random_state=42
+    )
+
+    # Scaling
+    if scaler_option == "StandardScaler":
+        scaler = StandardScaler()
+    elif scaler_option == "MinMaxScaler":
+        scaler = MinMaxScaler()
+    elif scaler_option == "RobustScaler":
+        scaler = RobustScaler()
+    else:
+        scaler = None
+
+    if scaler:
+        X_train = scaler.fit_transform(X_train)
+        X_test = scaler.transform(X_test)
+
+    # Model Selection
+    if problem_type == "Classification":
+        models = {
+            "Logistic Regression": LogisticRegression(),
+            "SVM": SVC(probability=True),
+            "Random Forest": RandomForestClassifier(),
+            "Decision Tree": DecisionTreeClassifier(),
+            "KNN": KNeighborsClassifier()
+        }
+    else:
+        models = {
+            "Linear Regression": LinearRegression(),
+            "Random Forest Regressor": RandomForestRegressor(),
+            "Decision Tree Regressor": DecisionTreeRegressor(),
+            "SVR": SVR(),
+            "KNN Regressor": KNeighborsRegressor()
+        }
+
+    if st.button("Train Models"):
+        results = []
 
         for name, model in models.items():
             model.fit(X_train, y_train)
-            preds = model.predict(X_test)
+            pred = model.predict(X_test)
 
-            st.write("Model:", name)
+            if problem_type == "Classification":
+                acc = accuracy_score(y_test, pred)
+                prec = precision_score(y_test, pred, average='weighted')
+                rec = recall_score(y_test, pred, average='weighted')
+                f1 = f1_score(y_test, pred, average='weighted')
 
-            if problem_type == "classification":
-                score = accuracy_score(y_test, preds)
-                st.write("Accuracy:", score)
+                results.append([name, acc, prec, rec, f1])
+
+                st.subheader(name)
+                st.write("Accuracy:", acc)
+                st.write("Precision:", prec)
+                st.write("Recall:", rec)
+                st.write("F1 Score:", f1)
+
+                cm = confusion_matrix(y_test, pred)
+                plt.figure()
+                sns.heatmap(cm, annot=True)
+                st.pyplot(plt)
+
+                st.text(classification_report(y_test, pred))
+
             else:
-                score = r2_score(y_test, preds)
-                st.write("R2 Score:", score)
+                mse = mean_squared_error(y_test, pred)
+                rmse = np.sqrt(mse)
+                r2 = r2_score(y_test, pred)
+
+                results.append([name, mse, rmse, r2])
+
+                st.subheader(name)
+                st.write("MSE:", mse)
+                st.write("RMSE:", rmse)
+                st.write("R2 Score:", r2)
+
+        # Results Table
+        st.subheader("Model Comparison")
+        if problem_type == "Classification":
+            results_df = pd.DataFrame(
+                results,
+                columns=["Model", "Accuracy", "Precision", "Recall", "F1"]
+            )
+        else:
+            results_df = pd.DataFrame(
+                results,
+                columns=["Model", "MSE", "RMSE", "R2"]
+            )
+
+        st.dataframe(results_df)
