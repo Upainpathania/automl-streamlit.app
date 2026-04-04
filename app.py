@@ -8,7 +8,7 @@ import io
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 
-# Classification Models
+# Models
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
@@ -222,4 +222,48 @@ if file:
             r2 = r2_score(y_test, y_pred)
             adj_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
             st.write("Adjusted R2:", adj_r2)
+
+    # ================= Model Comparison =================
+    if st.button("Compare All Models"):
+        results = []
+
+        for name, m in models.items():
+            m.fit(X_train, y_train)
+            pred = m.predict(X_test)
+
+            if problem_type == "Classification":
+                acc = accuracy_score(y_test, pred)
+                prec = precision_score(y_test, pred, average='weighted')
+                rec = recall_score(y_test, pred, average='weighted')
+                f1 = f1_score(y_test, pred, average='weighted')
+
+                results.append([name, acc, prec, rec, f1])
+
+            else:
+                mae = mean_absolute_error(y_test, pred)
+                mse = mean_squared_error(y_test, pred)
+                rmse = np.sqrt(mse)
+                r2 = r2_score(y_test, pred)
+
+                n = X_test.shape[0]
+                p = X_test.shape[1]
+                adj_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
+
+                results.append([name, mae, mse, rmse, r2, adj_r2])
+
+        if problem_type == "Classification":
+            results_df = pd.DataFrame(
+                results,
+                columns=["Model", "Accuracy", "Precision", "Recall", "F1"]
+            )
+        else:
+            results_df = pd.DataFrame(
+                results,
+                columns=["Model", "MAE", "MSE", "RMSE", "R2", "Adjusted R2"]
+            )
+
+        st.subheader("Model Comparison")
+        st.dataframe(results_df)
+
+
 
