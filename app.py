@@ -42,6 +42,36 @@ if file:
     df = pd.read_csv(file)
     st.write("Dataset Preview")
     st.dataframe(df)
+ # Dataset Overview / EDA
+st.subheader("Dataset Overview")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.write("Dataset Shape")
+    st.write(df.shape)
+
+    st.write("Duplicate Rows")
+    st.write(df.duplicated().sum())
+
+with col2:
+    st.write("Missing Values")
+    st.write(df.isnull().sum())
+
+st.subheader("First 5 Rows")
+st.dataframe(df.head())
+
+st.subheader("Last 5 Rows")
+st.dataframe(df.tail())
+
+# Dataset Info
+st.subheader("Dataset Info")
+
+import io
+buffer = io.StringIO()
+df.info(buf=buffer)
+s = buffer.getvalue()
+st.text(s)   
 
     # Sidebar options
     st.sidebar.title("ML Settings")
