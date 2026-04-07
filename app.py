@@ -36,10 +36,25 @@ st.markdown(
 )
 
 # Upload File
-file = st.file_uploader("Upload CSV File", type=["csv"])
+import pandas as pd
+
+def load_data(file):
+    try:
+        # Auto detect separator (csv, txt, etc.)
+        df = pd.read_csv(file, sep=None, engine='python')
+    except:
+        try:
+            # Excel support
+            df = pd.read_excel(file)
+        except:
+            raise ValueError("Unsupported file format")
+    return df
+
+
+file = st.file_uploader("Upload File", type=["csv", "txt", "xlsx"])
 
 if file:
-    df = pd.read_csv(file)
+    df = load_data(file)
 
     # ================= EDA =================
     st.subheader("Dataset Preview")
