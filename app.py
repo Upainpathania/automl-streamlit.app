@@ -36,21 +36,29 @@ st.markdown(
 )
 
 # Upload File
-import pandas as pd
-
 def load_data(file):
     try:
-        # Auto detect separator (csv, txt, etc.)
-        df = pd.read_csv(file, sep=None, engine='python')
+        # Auto-detect separator (works for most cases)
+        return pd.read_csv(file, sep=None, engine='python')
+    
     except:
         try:
-            # Excel support
-            df = pd.read_excel(file)
+            # Fallback separators
+            for sep in [';', '|', '\t']:
+                try:
+                    return pd.read_csv(file, sep=sep)
+                except:
+                    continue
+
+            # Try Excel
+            return pd.read_excel(file)
+
         except:
-            raise ValueError("Unsupported file format")
-    return df
+            st.error("Unsupported file format ❌")
+            return None
 
 
+# 🔹 File Upload
 file = st.file_uploader("Upload File", type=["csv", "txt", "xlsx"])
 
 if file:
