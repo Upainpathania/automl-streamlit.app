@@ -1,230 +1,383 @@
+# AutoML Streamlit App (Ultimate Final Version)
+# Made by Upain
+
 import streamlit as st
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import io
+import csv
 
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 
-# Classification
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.svm import SVC
-from sklearn.neighbors import KNeighborsClassifier
+# Supervised Models
+from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.svm import SVC, SVR
+from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 
-# Regression
-from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.svm import SVR
-from sklearn.neighbors import KNeighborsRegressor
+# Unsupervised Models
+from sklearn.cluster import KMeans, DBSCAN
+from sklearn.decomposition import PCA
 
 # Metrics
-from sklearn.metrics import accuracy_score, r2_score
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    confusion_matrix, classification_report,
+    mean_absolute_error, mean_squared_error, r2_score,
+    silhouette_score
+)
 
-st.set_page_config(layout="wide")
+# Page Config
+st.set_page_config(page_title="AutoML App", layout="wide")
 
-st.title("AutoML App")
+# Title
+st.markdown(
+    """
+    <h1 style='text-align: center;'>AutoML Web App</h1>
+    <p style='text-align: center;'>Made by <b>Upain</b></p>
+    <hr>
+    """,
+    unsafe_allow_html=True
+)
+
+# Load Data (PRO VERSION)
+def load_data(file):
+    try:
+        sep = csv.Sniffer().sniff(
+            file.read(5000).decode()
+        ).delimiter
+        
+        file.seek(0)
+        df = pd.read_csv(file, sep=sep)
+
+    except:
+        try:
+            file.seek(0)
+            df = pd.read_csv(file, sep=None, engine='python')
+        except:
+            try:
+                file.seek(0)
+                df = pd.read_excel(file)
+            except:
+                st.error("Unsupported file format ❌")
+                return None
+
+    # Fix broken single column
+    if len(df.columns) == 1:
+        try:
+            df = df.iloc[:,0].str.split(";", expand=True)
+        except:
+            pass
+
+    return df
+
 
 # Upload File
-uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
+file = st.file_uploader("Upload File", type=["csv", "txt", "xlsx"])
 
-if uploaded_file:
+if file:
 
-    # Separator option
-    sep_option = st.sidebar.selectbox(
-        "CSV Separator",
-        [",", ";", "|", "\t"]
+    df = load_data(file)
+
+    # ================= EDA =================
+    st.subheader("Dataset Preview")
+    st.dataframe(df)
+
+    st.subheader("Dataset Overview")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.write("Shape:", df.shape)
+        st.write("Duplicates:", df.duplicated().sum())
+
+    with col2:
+        st.write("Missing Values")
+        st.write(df.isnull().sum())
+
+    st.subheader("Dataset Info")
+
+    buffer = io.StringIO()
+    df.info(buf=buffer)
+    st.text(buffer.getvalue())
+
+    # ================= Visualization =================
+
+    st.subheader("Visualization")
+
+    graph_type = st.selectbox(
+        "Select Graph",
+        ["Histogram", "Scatter", "Boxplot"]
     )
 
-    df = pd.read_csv(uploaded_file, sep=sep_option)
+    numeric_cols = df.select_dtypes(include=np.number).columns
 
-    st.write("Dataset Preview")
-    st.dataframe(df.head())
+    if graph_type == "Histogram":
+        col = st.selectbox("Column", numeric_cols)
+        fig, ax = plt.subplots()
+        sns.histplot(df[col], ax=ax)
+        st.pyplot(fig)
 
-    st.sidebar.header("ML Settings")
+    elif graph_type == "Scatter":
+        x = st.selectbox("X", numeric_cols)
+        y = st.selectbox("Y", numeric_cols)
 
-    # Learning Type
+        fig, ax = plt.subplots()
+        sns.scatterplot(x=df[x], y=df[y], ax=ax)
+        st.pyplot(fig)
+
+    elif graph_type == "Boxplot":
+        col = st.selectbox("Column", numeric_cols)
+        fig, ax = plt.subplots()
+        sns.boxplot(x=df[col], ax=ax)
+        st.pyplot(fig)
+
+    # ================= Sidebar =================
+
+    st.sidebar.title("ML Settings")
+
     learning_type = st.sidebar.selectbox(
         "Learning Type",
         ["Supervised", "Unsupervised"]
     )
 
-    # Scaling
-    scaling = st.sidebar.selectbox(
+    scaler_option = st.sidebar.selectbox(
         "Scaling",
         ["None", "StandardScaler", "MinMaxScaler", "RobustScaler"]
     )
 
-    # Outlier Handling
     outlier_method = st.sidebar.selectbox(
         "Outlier Handling",
         ["None", "Remove", "Cap"]
     )
 
-    # Target
-    target = st.sidebar.selectbox(
-        "Target Column",
-        df.columns
-    )
+    # ================= Supervised =================
 
-    test_size = st.sidebar.slider(
-        "Test Size",
-        0.1, 0.4, 0.2
-    )
+    if learning_type == "Supervised":
 
-    # Split
-    X = df.drop(columns=[target])
-    y = df[target]
+        target = st.sidebar.selectbox("Target Column", df.columns)
 
-    # Auto detect
-    if y.dtype == 'object' or y.nunique() < 15:
-        problem_type = "Classification"
-    else:
-        problem_type = "Regression"
+        test_size = st.sidebar.slider("Test Size", 0.1, 0.4, 0.2)
 
-    st.sidebar.write("Detected:", problem_type)
+        X = df.drop(columns=[target])
+        y = df[target]
 
-    # Encode categorical
-    X = pd.get_dummies(X)
+        # Encode categorical
+        X = pd.get_dummies(X, drop_first=True)
 
-    # Outlier Handling FIX
-    if outlier_method != "None":
+        # Auto detect
+        if y.dtype == 'object' or y.nunique() < 15:
+            problem_type = "Classification"
+        else:
+            problem_type = "Regression"
 
-        df_temp = pd.concat([X, y], axis=1)
+        st.sidebar.write("Detected:", problem_type)
 
-        for col in X.columns:
+        # Outlier Fix (Professional)
+        if outlier_method != "None":
 
-            Q1 = df_temp[col].quantile(0.25)
-            Q3 = df_temp[col].quantile(0.75)
-            IQR = Q3 - Q1
+            df_temp = pd.concat([X, y], axis=1)
 
-            lower = Q1 - 1.5 * IQR
-            upper = Q3 + 1.5 * IQR
+            for col in X.columns:
 
-            if outlier_method == "Remove":
-                df_temp = df_temp[
-                    (df_temp[col] >= lower) &
-                    (df_temp[col] <= upper)
-                ]
+                Q1 = df_temp[col].quantile(0.25)
+                Q3 = df_temp[col].quantile(0.75)
+                IQR = Q3 - Q1
 
-            elif outlier_method == "Cap":
-                df_temp[col] = np.where(
-                    df_temp[col] > upper,
-                    upper,
-                    df_temp[col]
-                )
+                lower = Q1 - 1.5 * IQR
+                upper = Q3 + 1.5 * IQR
 
-                df_temp[col] = np.where(
-                    df_temp[col] < lower,
-                    lower,
-                    df_temp[col]
-                )
+                if outlier_method == "Remove":
+                    df_temp = df_temp[
+                        (df_temp[col] >= lower) &
+                        (df_temp[col] <= upper)
+                    ]
 
-        X = df_temp.drop(columns=[target])
-        y = df_temp[target]
+                elif outlier_method == "Cap":
+                    df_temp[col] = np.where(
+                        df_temp[col] > upper,
+                        upper,
+                        df_temp[col]
+                    )
 
-    # Train Test Split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y,
-        test_size=test_size,
-        random_state=42
-    )
+                    df_temp[col] = np.where(
+                        df_temp[col] < lower,
+                        lower,
+                        df_temp[col]
+                    )
 
-    # Scaling
-    scaler = None
+            X = df_temp.drop(columns=[target])
+            y = df_temp[target]
 
-    if scaling == "StandardScaler":
-        scaler = StandardScaler()
+        # Scaling
+        scaler = None
 
-    elif scaling == "MinMaxScaler":
-        scaler = MinMaxScaler()
+        if scaler_option == "StandardScaler":
+            scaler = StandardScaler()
 
-    elif scaling == "RobustScaler":
-        scaler = RobustScaler()
+        elif scaler_option == "MinMaxScaler":
+            scaler = MinMaxScaler()
 
-    if scaler:
-        X_train = scaler.fit_transform(X_train)
-        X_test = scaler.transform(X_test)
+        elif scaler_option == "RobustScaler":
+            scaler = RobustScaler()
 
-    # Compare Models
-    if st.button("Compare All Models"):
+        # Split
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=test_size, random_state=42
+        )
 
-        results = {}
+        if scaler:
+            X_train = scaler.fit_transform(X_train)
+            X_test = scaler.transform(X_test)
+
+        # Models
+        if problem_type == "Classification":
+            models = {
+                "Logistic Regression": LogisticRegression(max_iter=1000),
+                "SVM": SVC(),
+                "Random Forest": RandomForestClassifier(),
+                "Decision Tree": DecisionTreeClassifier(),
+                "KNN": KNeighborsClassifier()
+            }
+
+        else:
+            models = {
+                "Linear Regression": LinearRegression(),
+                "SVR": SVR(),
+                "Random Forest": RandomForestRegressor(),
+                "Decision Tree": DecisionTreeRegressor(),
+                "KNN": KNeighborsRegressor()
+            }
+
+        model_choice = st.sidebar.selectbox(
+            "Algorithm",
+            list(models.keys())
+        )
+
+        model = models[model_choice]
+
+        model.fit(X_train, y_train)
+
+        y_pred = model.predict(X_test)
+
+        st.subheader("Performance")
 
         if problem_type == "Classification":
 
-            models = {
+            st.write("Accuracy:", accuracy_score(y_test, y_pred))
+            st.write("Precision:", precision_score(y_test, y_pred, average='weighted'))
+            st.write("Recall:", recall_score(y_test, y_pred, average='weighted'))
+            st.write("F1:", f1_score(y_test, y_pred, average='weighted'))
 
-                "Logistic Regression": LogisticRegression(),
-                "Random Forest": RandomForestClassifier(),
-                "SVM": SVC(),
-                "KNN": KNeighborsClassifier()
+            st.subheader("Confusion Matrix")
 
-            }
+            fig, ax = plt.subplots()
 
-            for name, model in models.items():
+            sns.heatmap(
+                confusion_matrix(y_test, y_pred),
+                annot=True,
+                fmt='d',
+                ax=ax
+            )
 
-                model.fit(X_train, y_train)
-                preds = model.predict(X_test)
-
-                acc = accuracy_score(y_test, preds)
-                results[name] = acc
+            st.pyplot(fig)
 
         else:
 
-            models = {
+            st.write("MAE:", mean_absolute_error(y_test, y_pred))
+            st.write("MSE:", mean_squared_error(y_test, y_pred))
+            st.write("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred)))
+            st.write("R2:", r2_score(y_test, y_pred))
 
-                "Linear Regression": LinearRegression(),
-                "Random Forest": RandomForestRegressor(),
-                "SVR": SVR(),
-                "KNN": KNeighborsRegressor()
+        # Compare Models
+        if st.button("Compare All Models"):
 
-            }
+            results = []
 
-            for name, model in models.items():
+            for name, m in models.items():
 
-                model.fit(X_train, y_train)
-                preds = model.predict(X_test)
+                m.fit(X_train, y_train)
 
-                score = r2_score(y_test, preds)
-                results[name] = score
+                pred = m.predict(X_test)
 
-        results_df = pd.DataFrame(
-            results.items(),
-            columns=["Model", "Score"]
+                if problem_type == "Classification":
+
+                    acc = accuracy_score(y_test, pred)
+                    f1 = f1_score(y_test, pred, average='weighted')
+
+                    results.append([name, acc, f1])
+
+                else:
+
+                    r2 = r2_score(y_test, pred)
+                    rmse = np.sqrt(mean_squared_error(y_test, pred))
+
+                    results.append([name, r2, rmse])
+
+            if problem_type == "Classification":
+
+                results_df = pd.DataFrame(
+                    results,
+                    columns=["Model", "Accuracy", "F1"]
+                )
+
+            else:
+
+                results_df = pd.DataFrame(
+                    results,
+                    columns=["Model", "R2", "RMSE"]
+                )
+
+            st.subheader("Model Comparison")
+
+            st.dataframe(results_df)
+
+    # ================= Unsupervised =================
+
+    else:
+
+        X = pd.get_dummies(df, drop_first=True)
+
+        unsup = st.sidebar.selectbox(
+            "Algorithm",
+            ["KMeans", "DBSCAN", "PCA"]
         )
 
-        results_df = results_df.sort_values(
-            "Score",
-            ascending=False
-        )
+        if unsup == "KMeans":
 
-        st.subheader("Model Comparison")
-        st.dataframe(results_df)
+            k = st.sidebar.slider("Clusters", 2, 10, 3)
 
-        best_model_name = results_df.iloc[0, 0]
+            model = KMeans(n_clusters=k)
 
-        st.success(f"Best Model: {best_model_name}")
+            labels = model.fit_predict(X)
 
-        best_model = models[best_model_name]
-        best_model.fit(X_train, y_train)
+            st.write("Silhouette:", silhouette_score(X, labels))
 
-        st.subheader("Prediction")
+            st.bar_chart(pd.Series(labels).value_counts())
 
-        input_data = {}
+        elif unsup == "DBSCAN":
 
-        for col in X.columns:
-            input_data[col] = st.number_input(col)
+            model = DBSCAN()
 
-        input_df = pd.DataFrame([input_data])
+            labels = model.fit_predict(X)
 
-        if scaler:
-            input_df = scaler.transform(input_df)
+            st.bar_chart(pd.Series(labels).value_counts())
 
-        if st.button("Predict"):
+        elif unsup == "PCA":
 
-            prediction = best_model.predict(input_df)
+            pca = PCA(n_components=2)
 
-            st.success(f"Prediction: {prediction[0]}")
+            comp = pca.fit_transform(X)
+
+            fig, ax = plt.subplots()
+
+            ax.scatter(comp[:, 0], comp[:, 1])
+
+            st.pyplot(fig)
 
 
 
