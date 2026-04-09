@@ -11,7 +11,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 
 # Supervised Models
 from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.svm import SVC, SVR
+from sklearn.svm import SVC
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
@@ -20,7 +20,6 @@ from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.decomposition import PCA
 from sklearn.ensemble import IsolationForest
-from sklearn.tree import DecisionTreeClassifier
 
 # Metrics
 from sklearn.metrics import (
@@ -81,7 +80,6 @@ if file:
 
     df = load_data(file)
 
-    # ================= EDA =================
     st.subheader("Dataset Preview")
     st.dataframe(df)
 
@@ -102,8 +100,6 @@ if file:
     buffer = io.StringIO()
     df.info(buf=buffer)
     st.text(buffer.getvalue())
-
-    # ================= Visualization =================
 
     st.subheader("Visualization")
 
@@ -134,7 +130,6 @@ if file:
         sns.boxplot(x=df[col], ax=ax)
         st.pyplot(fig)
 
-    # Sidebar
     st.sidebar.title("ML Settings")
 
     learning_type = st.sidebar.selectbox(
@@ -171,7 +166,6 @@ if file:
 
         st.sidebar.write("Detected:", problem_type)
 
-        # Outlier Fix
         if outlier_method != "None":
 
             df_temp = pd.concat([X, y], axis=1)
@@ -226,7 +220,7 @@ if file:
             X_train = scaler.fit_transform(X_train)
             X_test = scaler.transform(X_test)
 
-        # Supervised Models
+        # Updated Models
         if problem_type == "Classification":
             models = {
                 "Logistic Regression": LogisticRegression(max_iter=1000),
@@ -239,7 +233,6 @@ if file:
         else:
             models = {
                 "Linear Regression": LinearRegression(),
-                "SVR": SVR(),
                 "Random Forest": RandomForestRegressor(),
                 "Decision Tree": DecisionTreeRegressor(),
                 "KNN": KNeighborsRegressor()
@@ -282,7 +275,6 @@ if file:
             st.write("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred)))
             st.write("R2:", r2_score(y_test, y_pred))
 
-        # Compare Models
         if st.button("Compare All Models"):
 
             results = []
@@ -338,14 +330,12 @@ if file:
 
             model = IsolationForest()
             labels = model.fit_predict(X)
-
             st.bar_chart(pd.Series(labels).value_counts())
 
         elif unsup == "Decision Tree":
 
             model = DecisionTreeClassifier()
             labels = model.fit_predict(X)
-
             st.bar_chart(pd.Series(labels).value_counts())
 
         elif unsup == "KMeans":
@@ -362,7 +352,6 @@ if file:
 
             model = DBSCAN()
             labels = model.fit_predict(X)
-
             st.bar_chart(pd.Series(labels).value_counts())
 
         elif unsup == "PCA":
