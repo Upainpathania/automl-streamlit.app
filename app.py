@@ -34,7 +34,7 @@ st.set_page_config(page_title="AutoML App", layout="wide")
 st.markdown(
     """
     <h1 style='text-align: center;'>AutoML Web App</h1>
-    <p style='text-align: center;'>Made by <b>Upain</b></p>
+    <p style='text-align: center;'>Made by <b>Upain Pathania</b></p>
     <hr>
     """,
     unsafe_allow_html=True
