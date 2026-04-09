@@ -307,7 +307,7 @@ if file:
             fig, ax = plt.subplots()
             ax.scatter(components[:, 0], components[:, 1])
             st.pyplot(fig)
-```
+
 
 
 
