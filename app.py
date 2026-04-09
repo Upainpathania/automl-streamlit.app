@@ -1,3 +1,7 @@
+```python
+# AutoML Streamlit App (Final Version)
+# Made by Upain
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -34,7 +38,7 @@ st.set_page_config(page_title="AutoML App", layout="wide")
 st.markdown(
     """
     <h1 style='text-align: center;'>AutoML Web App</h1>
-    <p style='text-align: center;'>Made by <b>Upain Pathania</b></p>
+    <p style='text-align: center;'>Made by <b>Upain</b></p>
     <hr>
     """,
     unsafe_allow_html=True
@@ -146,22 +150,9 @@ if file:
 
     if learning_type == "Supervised":
 
-        problem_type = st.sidebar.selectbox(
-            "Problem Type",
-            ["Classification", "Regression"]
-        )
-
         target = st.sidebar.selectbox("Select Target Column", df.columns)
 
         test_size = st.sidebar.slider("Test Size", 0.1, 0.4, 0.2)
-
-        # Metrics
-        if problem_type == "Classification":
-            metric_options = ["Accuracy", "Precision", "Recall", "F1 Score"]
-        else:
-            metric_options = ["MAE", "MSE", "RMSE", "R2 Score", "Adjusted R2"]
-
-        selected_metrics = st.sidebar.multiselect("Select Metrics", metric_options)
 
         # Prepare Data
         X = df.drop(columns=[target])
@@ -169,6 +160,14 @@ if file:
 
         # Fix categorical
         X = pd.get_dummies(X, drop_first=True)
+
+        # Auto Detect Problem Type
+        if y.dtype == 'object' or y.nunique() < 15:
+            problem_type = "Classification"
+        else:
+            problem_type = "Regression"
+
+        st.sidebar.write("Detected Problem Type:", problem_type)
 
         # Scaling
         if scaler_option == "StandardScaler":
@@ -189,7 +188,7 @@ if file:
         # Models
         if problem_type == "Classification":
             models = {
-                "Logistic Regression": LogisticRegression(),
+                "Logistic Regression": LogisticRegression(max_iter=1000),
                 "SVM": SVC(),
                 "Random Forest": RandomForestClassifier(),
                 "Decision Tree": DecisionTreeClassifier(),
@@ -215,17 +214,10 @@ if file:
         # Classification
         if problem_type == "Classification":
 
-            if "Accuracy" in selected_metrics:
-                st.write("Accuracy:", accuracy_score(y_test, y_pred))
-
-            if "Precision" in selected_metrics:
-                st.write("Precision:", precision_score(y_test, y_pred, average='weighted'))
-
-            if "Recall" in selected_metrics:
-                st.write("Recall:", recall_score(y_test, y_pred, average='weighted'))
-
-            if "F1 Score" in selected_metrics:
-                st.write("F1 Score:", f1_score(y_test, y_pred, average='weighted'))
+            st.write("Accuracy:", accuracy_score(y_test, y_pred))
+            st.write("Precision:", precision_score(y_test, y_pred, average='weighted'))
+            st.write("Recall:", recall_score(y_test, y_pred, average='weighted'))
+            st.write("F1 Score:", f1_score(y_test, y_pred, average='weighted'))
 
             st.subheader("Confusion Matrix")
             cm = confusion_matrix(y_test, y_pred)
@@ -239,26 +231,10 @@ if file:
         # Regression
         else:
 
-            n = X_test.shape[0]
-            p = X_test.shape[1]
-
-            if "MAE" in selected_metrics:
-                st.write("MAE:", mean_absolute_error(y_test, y_pred))
-
-            if "MSE" in selected_metrics:
-                st.write("MSE:", mean_squared_error(y_test, y_pred))
-
-            if "RMSE" in selected_metrics:
-                st.write("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred)))
-
-            if "R2 Score" in selected_metrics:
-                r2 = r2_score(y_test, y_pred)
-                st.write("R2 Score:", r2)
-
-            if "Adjusted R2" in selected_metrics:
-                r2 = r2_score(y_test, y_pred)
-                adj_r2 = 1 - (1 - r2) * (n - 1) / (n - p - 1)
-                st.write("Adjusted R2:", adj_r2)
+            st.write("MAE:", mean_absolute_error(y_test, y_pred))
+            st.write("MSE:", mean_squared_error(y_test, y_pred))
+            st.write("RMSE:", np.sqrt(mean_squared_error(y_test, y_pred)))
+            st.write("R2 Score:", r2_score(y_test, y_pred))
 
     # ================= Unsupervised =================
 
@@ -284,29 +260,27 @@ if file:
         )
 
         if unsup_algo == "KMeans":
-            k = st.sidebar.slider("Number of Clusters", 2, 10, 3)
+            k = st.sidebar.slider("Clusters", 2, 10, 3)
             model = KMeans(n_clusters=k)
             labels = model.fit_predict(X)
 
             st.write("Silhouette Score:", silhouette_score(X, labels))
-
-            st.subheader("Cluster Distribution")
             st.bar_chart(pd.Series(labels).value_counts())
 
         elif unsup_algo == "DBSCAN":
             model = DBSCAN()
             labels = model.fit_predict(X)
-            st.subheader("Cluster Distribution")
             st.bar_chart(pd.Series(labels).value_counts())
 
         elif unsup_algo == "PCA":
             pca = PCA(n_components=2)
             components = pca.fit_transform(X)
 
-            st.subheader("PCA Visualization")
             fig, ax = plt.subplots()
             ax.scatter(components[:, 0], components[:, 1])
             st.pyplot(fig)
+```
+
 
 
 
