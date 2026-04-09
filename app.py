@@ -1,7 +1,3 @@
-```python
-# AutoML Streamlit App (Final Version)
-# Made by Upain
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -279,7 +275,7 @@ if file:
             fig, ax = plt.subplots()
             ax.scatter(components[:, 0], components[:, 1])
             st.pyplot(fig)
-```
+
 
 
 
