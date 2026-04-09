@@ -1,6 +1,3 @@
-# AutoML Streamlit App (Ultimate Final Version)
-# Made by Upain
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -22,11 +19,13 @@ from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 # Unsupervised Models
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.decomposition import PCA
+from sklearn.ensemble import IsolationForest
+from sklearn.tree import DecisionTreeClassifier
 
 # Metrics
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score, f1_score,
-    confusion_matrix, classification_report,
+    confusion_matrix,
     mean_absolute_error, mean_squared_error, r2_score,
     silhouette_score
 )
@@ -44,7 +43,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Load Data (PRO VERSION)
+# Load Data
 def load_data(file):
     try:
         sep = csv.Sniffer().sniff(
@@ -76,7 +75,6 @@ def load_data(file):
     return df
 
 
-# Upload File
 file = st.file_uploader("Upload File", type=["csv", "txt", "xlsx"])
 
 if file:
@@ -136,8 +134,7 @@ if file:
         sns.boxplot(x=df[col], ax=ax)
         st.pyplot(fig)
 
-    # ================= Sidebar =================
-
+    # Sidebar
     st.sidebar.title("ML Settings")
 
     learning_type = st.sidebar.selectbox(
@@ -160,16 +157,13 @@ if file:
     if learning_type == "Supervised":
 
         target = st.sidebar.selectbox("Target Column", df.columns)
-
         test_size = st.sidebar.slider("Test Size", 0.1, 0.4, 0.2)
 
         X = df.drop(columns=[target])
         y = df[target]
 
-        # Encode categorical
         X = pd.get_dummies(X, drop_first=True)
 
-        # Auto detect
         if y.dtype == 'object' or y.nunique() < 15:
             problem_type = "Classification"
         else:
@@ -177,7 +171,7 @@ if file:
 
         st.sidebar.write("Detected:", problem_type)
 
-        # Outlier Fix (Professional)
+        # Outlier Fix
         if outlier_method != "None":
 
             df_temp = pd.concat([X, y], axis=1)
@@ -213,7 +207,6 @@ if file:
             X = df_temp.drop(columns=[target])
             y = df_temp[target]
 
-        # Scaling
         scaler = None
 
         if scaler_option == "StandardScaler":
@@ -225,7 +218,6 @@ if file:
         elif scaler_option == "RobustScaler":
             scaler = RobustScaler()
 
-        # Split
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=test_size, random_state=42
         )
@@ -234,7 +226,7 @@ if file:
             X_train = scaler.fit_transform(X_train)
             X_test = scaler.transform(X_test)
 
-        # Models
+        # Supervised Models
         if problem_type == "Classification":
             models = {
                 "Logistic Regression": LogisticRegression(max_iter=1000),
@@ -259,7 +251,6 @@ if file:
         )
 
         model = models[model_choice]
-
         model.fit(X_train, y_train)
 
         y_pred = model.predict(X_test)
@@ -272,8 +263,6 @@ if file:
             st.write("Precision:", precision_score(y_test, y_pred, average='weighted'))
             st.write("Recall:", recall_score(y_test, y_pred, average='weighted'))
             st.write("F1:", f1_score(y_test, y_pred, average='weighted'))
-
-            st.subheader("Confusion Matrix")
 
             fig, ax = plt.subplots()
 
@@ -301,7 +290,6 @@ if file:
             for name, m in models.items():
 
                 m.fit(X_train, y_train)
-
                 pred = m.predict(X_test)
 
                 if problem_type == "Classification":
@@ -333,7 +321,6 @@ if file:
                 )
 
             st.subheader("Model Comparison")
-
             st.dataframe(results_df)
 
     # ================= Unsupervised =================
@@ -344,25 +331,36 @@ if file:
 
         unsup = st.sidebar.selectbox(
             "Algorithm",
-            ["KMeans", "DBSCAN", "PCA"]
+            ["Random Forest", "Decision Tree", "KMeans", "DBSCAN", "PCA"]
         )
 
-        if unsup == "KMeans":
+        if unsup == "Random Forest":
+
+            model = IsolationForest()
+            labels = model.fit_predict(X)
+
+            st.bar_chart(pd.Series(labels).value_counts())
+
+        elif unsup == "Decision Tree":
+
+            model = DecisionTreeClassifier()
+            labels = model.fit_predict(X)
+
+            st.bar_chart(pd.Series(labels).value_counts())
+
+        elif unsup == "KMeans":
 
             k = st.sidebar.slider("Clusters", 2, 10, 3)
 
             model = KMeans(n_clusters=k)
-
             labels = model.fit_predict(X)
 
             st.write("Silhouette:", silhouette_score(X, labels))
-
             st.bar_chart(pd.Series(labels).value_counts())
 
         elif unsup == "DBSCAN":
 
             model = DBSCAN()
-
             labels = model.fit_predict(X)
 
             st.bar_chart(pd.Series(labels).value_counts())
@@ -370,15 +368,12 @@ if file:
         elif unsup == "PCA":
 
             pca = PCA(n_components=2)
-
             comp = pca.fit_transform(X)
 
             fig, ax = plt.subplots()
-
             ax.scatter(comp[:, 0], comp[:, 1])
 
             st.pyplot(fig)
-
 
 
 
