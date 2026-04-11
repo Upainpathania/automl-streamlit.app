@@ -1,4 +1,5 @@
 # 🚀 AutoML Web Application
+LINK -https://automl-appapp-9f2ud68rz3ditlctgbe9gg.streamlit.app/ (CLICK TO USE THE APP
 
 A powerful and interactive **Automated Machine Learning (AutoML)** web app that enables users to perform data analysis, visualization, and model building — all in one place, without complex coding.
 
