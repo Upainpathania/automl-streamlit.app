@@ -257,16 +257,17 @@ if file:
             st.write("Recall:", recall_score(y_test, y_pred, average='weighted'))
             st.write("F1:", f1_score(y_test, y_pred, average='weighted'))
 
-            fig, ax = plt.subplots()
+            cm = confusion_matrix(y_test, y_pred)
 
-            sns.heatmap(
-                confusion_matrix(y_test, y_pred),
-                annot=True,
-                fmt='d',
-                ax=ax
+            st.subheader("Confusion Matrix")
+
+            cm_df = pd.DataFrame(
+            cm,
+            index=[f"Actual {i}" for i in np.unique(y_test)],
+            columns=[f"Predicted {i}" for i in np.unique(y_test)]
             )
 
-            st.pyplot(fig)
+            st.dataframe(cm_df)
 
         else:
 
