@@ -256,18 +256,35 @@ if file:
             st.write("Precision:", precision_score(y_test, y_pred, average='weighted'))
             st.write("Recall:", recall_score(y_test, y_pred, average='weighted'))
             st.write("F1:", f1_score(y_test, y_pred, average='weighted'))
+        cm = confusion_matrix(y_test, y_pred)
 
-            cm = confusion_matrix(y_test, y_pred)
-
-            st.subheader("Confusion Matrix")
-
-            cm_df = pd.DataFrame(
-            cm,
-            index=[f"Actual {i}" for i in np.unique(y_test)],
-            columns=[f"Predicted {i}" for i in np.unique(y_test)]
-            )
-
-            st.dataframe(cm_df)
+            fig, ax = plt.subplots()
+            
+            cax = ax.matshow(cm, cmap='Blues')
+            plt.title("Confusion Matrix")
+            plt.colorbar(cax)
+            
+            ax.set_xlabel('Predicted')
+            ax.set_ylabel('Actual')
+            
+            # Set labels dynamically
+            labels = np.unique(y_test)
+            
+            ax.set_xticks(np.arange(len(labels)))
+            ax.set_yticks(np.arange(len(labels)))
+            
+            ax.set_xticklabels(labels)
+            ax.set_yticklabels(labels)
+            
+            # Add numbers inside boxes
+            for i in range(len(labels)):
+                for j in range(len(labels)):
+                    ax.text(j, i, cm[i, j],
+                            ha="center", va="center",
+                            color="black")
+            
+            st.pyplot(fig)
+                 
 
         else:
 
