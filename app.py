@@ -256,7 +256,7 @@ if file:
             st.write("Precision:", precision_score(y_test, y_pred, average='weighted'))
             st.write("Recall:", recall_score(y_test, y_pred, average='weighted'))
             st.write("F1:", f1_score(y_test, y_pred, average='weighted'))
-        cm = confusion_matrix(y_test, y_pred)
+            cm = confusion_matrix(y_test, y_pred)
 
             fig, ax = plt.subplots()
             
